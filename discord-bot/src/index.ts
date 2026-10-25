@@ -43,9 +43,27 @@ async function bootstrap() {
   // Connect Discord bot to gateway asynchronously with automatic background retries
   if (TOKEN && TOKEN !== 'your_bot_token_here') {
     const connectWithRetry = async () => {
-      let delay = 3000;
+      let delay = 5000;
       let attempt = 1;
       while (true) {
+        // Pre-check for Discord Cloudflare global IP rate limit
+        try {
+          const gwCheck = await fetch('https://discord.com/api/v10/gateway', {
+            signal: AbortSignal.timeout(5000),
+          });
+          if (gwCheck.status === 429) {
+            const retryHeader = gwCheck.headers.get('retry-after');
+            const waitSec = Math.max(15, parseInt(retryHeader || '30', 10));
+            const msg = `Discord IP Rate Limit (HTTP 429): Render shared IP is temporarily throttled by Discord. Auto-retrying in ${waitSec}s (or switch Render Region to Oregon/Ohio for a fresh IP).`;
+            console.warn(`[DiscordService] ${msg}`);
+            botService.setConfigError(msg);
+            await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
+            continue;
+          }
+        } catch {
+          // Continue to login attempt if pre-check encounters network issue
+        }
+
         console.log(`[DiscordService] Authenticating bot with Discord gateway (attempt ${attempt})...`);
         const success = await botService.start(TOKEN, 45000).catch((err) => {
           console.error(`[DiscordService] Gateway connection error (attempt ${attempt}):`, err?.message || err);

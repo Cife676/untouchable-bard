@@ -104,7 +104,8 @@ export function createApiServer(
           signal: AbortSignal.timeout(5000),
         });
         const gwData = await gwRes.json().catch(() => null);
-        discordGatewayCheck = { status: gwRes.status, ok: gwRes.ok, data: gwData };
+        const retryAfter = gwRes.headers.get('retry-after');
+        discordGatewayCheck = { status: gwRes.status, ok: gwRes.ok, retryAfter, data: gwData };
       } catch (e: any) {
         discordGatewayCheck = { error: e.message || String(e) };
       }
@@ -117,7 +118,8 @@ export function createApiServer(
             signal: AbortSignal.timeout(5000),
           });
           const authData = await authRes.json().catch(() => null);
-          discordAuthCheck = { status: authRes.status, ok: authRes.ok, user: authData };
+          const retryAfter = authRes.headers.get('retry-after');
+          discordAuthCheck = { status: authRes.status, ok: authRes.ok, retryAfter, user: authData };
         } catch (e: any) {
           discordAuthCheck = { error: e.message || String(e) };
         }
