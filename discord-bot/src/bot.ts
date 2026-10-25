@@ -405,7 +405,9 @@ export class DiscordBotService {
           command.assetId,
           buffer,
           command.volume ?? 0.85,
-          command.name ?? 'SFX Cue'
+          command.name ?? 'SFX Cue',
+          command.channel ?? 'sfx',
+          command.loop ?? false
         );
         console.log(`[AudioPipeline][${targetGuildId}] SFX triggered: "${command.name ?? 'SFX Cue'}" -> ${buffer.length} bytes PCM queued into mixer`);
         return { success: true };

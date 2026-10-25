@@ -15,6 +15,19 @@ export class AudioEngine {
   private masterVolume: number = 0.8;
   private isMasterMuted: boolean = false;
 
+  private channelVolumes: Map<ChannelId, number> = new Map([
+    ['music', 0.6],
+    ['ambience', 0.4],
+    ['environment', 0.35],
+    ['sfx', 0.75],
+  ]);
+  private channelMutes: Map<ChannelId, boolean> = new Map([
+    ['music', false],
+    ['ambience', false],
+    ['environment', false],
+    ['sfx', false],
+  ]);
+
   private channels: Map<ChannelId, AudioChannel> = new Map();
   private bufferCache: Map<string, AudioBuffer> = new Map();
   private listeners: Set<StateListener> = new Set();
@@ -39,22 +52,30 @@ export class AudioEngine {
       this.masterGain.connect(this.ctx.destination);
 
       // Initialize the core channels
-      const channelConfigs: { id: ChannelId; name: string; volume: number }[] = [
-        { id: 'music', name: 'Background Music', volume: 0.6 },
-        { id: 'ambience', name: 'Ambience', volume: 0.4 },
-        { id: 'environment', name: 'Environment Layers', volume: 0.35 },
-        { id: 'sfx', name: 'Sound Effects', volume: 0.75 },
+      const channelConfigs: { id: ChannelId; name: string; defaultVolume: number }[] = [
+        { id: 'music', name: 'Background Music', defaultVolume: 0.6 },
+        { id: 'ambience', name: 'Ambience', defaultVolume: 0.4 },
+        { id: 'environment', name: 'Environment Layers', defaultVolume: 0.35 },
+        { id: 'sfx', name: 'Sound Effects', defaultVolume: 0.75 },
       ];
 
       for (const config of channelConfigs) {
+        const initVol = this.channelVolumes.get(config.id) ?? config.defaultVolume;
         const channel = new AudioChannel(
           config.id,
           config.name,
           this.ctx,
           this.masterGain,
-          config.volume,
-          () => this.notifyListeners()
+          initVol,
+          () => {
+            this.channelVolumes.set(config.id, channel.getVolume());
+            this.channelMutes.set(config.id, channel.isChannelMuted());
+            this.notifyListeners();
+          }
         );
+        if (this.channelMutes.get(config.id)) {
+          channel.setMute(true);
+        }
         this.channels.set(config.id, channel);
       }
     }
@@ -113,9 +134,40 @@ export class AudioEngine {
    * Set volume for a specific channel
    */
   public setChannelVolume(channelId: ChannelId, volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.channelVolumes.set(channelId, clamped);
     const channel = this.channels.get(channelId);
     if (channel) {
-      channel.setVolume(volume);
+      channel.setVolume(clamped);
+    } else {
+      this.notifyListeners();
+    }
+  }
+
+  /**
+   * Toggle mute for a specific channel
+   */
+  public toggleChannelMute(channelId: ChannelId): void {
+    const channel = this.channels.get(channelId);
+    if (channel) {
+      channel.setMute(!channel.isChannelMuted());
+    } else {
+      const current = this.channelMutes.get(channelId) ?? false;
+      this.channelMutes.set(channelId, !current);
+      this.notifyListeners();
+    }
+  }
+
+  /**
+   * Set mute for a specific channel
+   */
+  public setChannelMute(channelId: ChannelId, muted: boolean): void {
+    this.channelMutes.set(channelId, muted);
+    const channel = this.channels.get(channelId);
+    if (channel) {
+      channel.setMute(muted);
+    } else {
+      this.notifyListeners();
     }
   }
 
@@ -221,29 +273,29 @@ export class AudioEngine {
       music: this.channels.get('music')?.getStatus() ?? {
         id: 'music',
         name: 'Background Music',
-        volume: 0.6,
-        isMuted: false,
+        volume: this.channelVolumes.get('music') ?? 0.6,
+        isMuted: this.channelMutes.get('music') ?? false,
         isPlaying: false,
       },
       ambience: this.channels.get('ambience')?.getStatus() ?? {
         id: 'ambience',
         name: 'Ambience',
-        volume: 0.4,
-        isMuted: false,
+        volume: this.channelVolumes.get('ambience') ?? 0.4,
+        isMuted: this.channelMutes.get('ambience') ?? false,
         isPlaying: false,
       },
       environment: this.channels.get('environment')?.getStatus() ?? {
         id: 'environment',
         name: 'Environment Layers',
-        volume: 0.35,
-        isMuted: false,
+        volume: this.channelVolumes.get('environment') ?? 0.35,
+        isMuted: this.channelMutes.get('environment') ?? false,
         isPlaying: false,
       },
       sfx: this.channels.get('sfx')?.getStatus() ?? {
         id: 'sfx',
         name: 'Sound Effects',
-        volume: 0.75,
-        isMuted: false,
+        volume: this.channelVolumes.get('sfx') ?? 0.75,
+        isMuted: this.channelMutes.get('sfx') ?? false,
         isPlaying: false,
       },
     };

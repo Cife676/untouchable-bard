@@ -43,7 +43,7 @@ export const AudioLibrary: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const { triggerSfx: triggerDiscordSfx, stopAll: stopDiscordAll } = useSession();
+  const { triggerSfx: triggerDiscordSfx, stopAll: stopDiscordAll, outputTarget } = useSession();
 
   const handlePreview = async (asset: AudioAsset) => {
     const channelId = CATEGORY_TO_CHANNEL[asset.type];
@@ -54,18 +54,22 @@ export const AudioLibrary: React.FC = () => {
       setPreviewingId(null);
     } else {
       setPreviewingId(asset.id);
-      triggerDiscordSfx(asset.id, 0.8);
-      await playAsset(
-        channelId,
-        asset.id,
-        asset.fileUrl,
-        {
-          volume: 0.8,
-          loop: asset.loopable,
-          fadeDuration: 0.5,
-        },
-        `Preview: ${asset.name}`
-      );
+      if (outputTarget === 'discord' || outputTarget === 'both') {
+        triggerDiscordSfx(asset.id, 0.8);
+      }
+      if (outputTarget === 'browser' || outputTarget === 'both') {
+        await playAsset(
+          channelId,
+          asset.id,
+          asset.fileUrl,
+          {
+            volume: 0.8,
+            loop: asset.loopable,
+            fadeDuration: 0.5,
+          },
+          `Preview: ${asset.name}`
+        );
+      }
     }
   };
 

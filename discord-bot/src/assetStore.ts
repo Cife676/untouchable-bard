@@ -257,16 +257,16 @@ export class AssetStore {
       return { success: false, format: 'unknown', error: 'Invalid asset ID' };
     }
 
-    const format = this.detectFormat(fileBuffer);
+    let format = this.detectFormat(fileBuffer);
     if (format === 'unknown') {
-      return {
-        success: false,
-        format: 'unknown',
-        error: 'Unsupported audio format. Expected valid MP3, WAV, or OGG file.',
-      };
+      const lower = (originalName || '').toLowerCase();
+      if (lower.endsWith('.mp3')) format = 'mp3';
+      else if (lower.endsWith('.wav')) format = 'wav';
+      else if (lower.endsWith('.ogg')) format = 'ogg';
     }
 
-    const targetFile = path.join(this.dataDir, `${cleanId}.${format}`);
+    const effectiveExtension = format !== 'unknown' ? format : 'bin';
+    const targetFile = path.join(this.dataDir, `${cleanId}.${effectiveExtension}`);
     await fs.promises.writeFile(targetFile, fileBuffer);
 
     // Fast path: If it's a standard WAV, convert via built-in parser
@@ -275,18 +275,26 @@ export class AssetStore {
       pcm = this.parseWavToPcm(fileBuffer);
     }
 
-    // High quality transcoding path: Use FFmpeg for MP3, OGG, or non-standard WAV
+    // High quality transcoding path: Use FFmpeg for MP3, OGG, or any audio format
     if (!pcm) {
       pcm = await this.transcodeFileToPcm(targetFile);
     }
 
-    if (pcm) {
-      this.pcmCache.set(assetId, pcm);
-      this.pcmCache.set(cleanId, pcm);
-      const pcmPath = path.join(this.dataDir, `${cleanId}.pcm`);
-      await fs.promises.writeFile(pcmPath, pcm);
-      console.log(`[AssetStore] Successfully prepared 48kHz PCM for asset "${originalName}" (${cleanId}, ${format}, ${pcm.length} bytes)`);
+    if (!pcm) {
+      // Clean up unrecognized target file
+      await fs.promises.unlink(targetFile).catch(() => {});
+      return {
+        success: false,
+        format: 'unknown',
+        error: 'Unsupported or unreadable audio format. Expected valid MP3, WAV, or OGG file.',
+      };
     }
+
+    this.pcmCache.set(assetId, pcm);
+    this.pcmCache.set(cleanId, pcm);
+    const pcmPath = path.join(this.dataDir, `${cleanId}.pcm`);
+    await fs.promises.writeFile(pcmPath, pcm);
+    console.log(`[AssetStore] Successfully prepared 48kHz PCM for asset "${originalName}" (${cleanId}, ${format}, ${pcm.length} bytes)`);
 
     this.metadataCache.set(cleanId, {
       id: cleanId,

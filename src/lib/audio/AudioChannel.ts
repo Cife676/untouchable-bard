@@ -141,7 +141,10 @@ export class AudioChannel {
       }
     };
 
-    source.start(0, startOffset % buffer.duration);
+    const offset = (isFinite(buffer.duration) && buffer.duration > 0)
+      ? Math.max(0, startOffset % buffer.duration)
+      : 0;
+    source.start(0, offset);
     this.voices.set(voiceInstanceId, voice);
     this.onStateChange();
 

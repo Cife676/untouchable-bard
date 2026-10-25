@@ -47,34 +47,13 @@ export const CurrentScene: React.FC<CurrentSceneProps> = ({ scene }) => {
     (layer) => snapshot.channels[layer.channel]?.isPlaying
   );
 
-  const handleStartScene = async () => {
-    // Dispatch through SessionController to ensure Discord receives SCENE_START
+  const handleStartScene = () => {
+    // Dispatch through SessionController to start scene on designated output targets (Browser / Discord / Both)
     startScene(scene.id);
-
-    // Play in local Web Audio Engine
-    for (const layer of scene.layers) {
-      const asset = assets.find((a) => a.id === layer.assetId);
-      if (asset) {
-        await playAsset(
-          layer.channel,
-          layer.assetId,
-          asset.fileUrl,
-          {
-            volume: layer.volume,
-            loop: layer.loop,
-            fadeDuration: layer.fadeDuration ?? 1.5,
-          },
-          layer.name
-        );
-      }
-    }
   };
 
   const handleStopScene = () => {
     stopScene(1.5);
-    for (const layer of scene.layers) {
-      stopChannel(layer.channel, 1.5);
-    }
   };
 
   return (

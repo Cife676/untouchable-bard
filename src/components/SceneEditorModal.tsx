@@ -136,6 +136,15 @@ export const SceneEditorModal: React.FC = () => {
             }
           }
 
+          if (updates.channel && updates.channel !== l.channel && updates.loop === undefined) {
+            const shouldLoop = updates.channel === 'music' || updates.channel === 'ambience' || updates.channel === 'environment';
+            return {
+              ...l,
+              ...updates,
+              loop: shouldLoop,
+            };
+          }
+
           return { ...l, ...updates };
         }),
       };

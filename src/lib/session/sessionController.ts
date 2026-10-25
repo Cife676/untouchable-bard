@@ -145,7 +145,18 @@ export class SessionController {
               // Non-fatal
             }
           }
-          await DiscordClient.sendCommand({ type: 'SFX_TRIGGER', assetId: command.assetId, volume: command.volume }, guildId);
+          const channel = asset?.type === 'MUSIC' ? 'music' : asset?.type === 'AMBIENCE' ? 'ambience' : asset?.type === 'ENVIRONMENT' ? 'environment' : 'sfx';
+          await DiscordClient.sendCommand(
+            {
+              type: 'SFX_TRIGGER',
+              assetId: command.assetId,
+              volume: command.volume,
+              name: asset?.name,
+              channel,
+              loop: asset?.loopable ?? false,
+            },
+            guildId
+          );
           break;
         }
         case 'CHANNEL_VOLUME_SET':
@@ -220,6 +231,14 @@ export class SessionController {
         }
         break;
       }
+      case 'LAYER_MUTE_TOGGLE': {
+        const layer = this.state.layerStates[command.layerId];
+        if (layer) {
+          layer.isMuted = !layer.isMuted;
+          this.notify();
+        }
+        break;
+      }
       case 'CROSSFADE_SET':
         this.state.crossfadeDuration = Math.max(0, command.duration);
         this.notify();
@@ -231,12 +250,44 @@ export class SessionController {
    * Primary Command Dispatcher
    */
   public async dispatch(command: SessionCommand): Promise<void> {
-    // 1. Route to Discord if enabled
+    // 1. Always update local engine mixer controls and live layer state so UI sliders and mutes react immediately
+    switch (command.type) {
+      case 'CHANNEL_VOLUME_SET':
+        this.engine.setChannelVolume(command.channel, command.volume);
+        break;
+
+      case 'CHANNEL_MUTE_TOGGLE':
+        this.engine.toggleChannelMute(command.channel);
+        break;
+
+      case 'MASTER_VOLUME_SET':
+        this.engine.setMasterVolume(command.volume);
+        break;
+
+      case 'MASTER_MUTE':
+        this.engine.setMasterMute(command.muted);
+        break;
+
+      case 'LAYER_VOLUME_SET':
+        this.handleLayerVolume(command.layerId, command.volume);
+        break;
+
+      case 'LAYER_MUTE_TOGGLE':
+        this.handleLayerMuteToggle(command.layerId);
+        break;
+
+      case 'CROSSFADE_SET':
+        this.state.crossfadeDuration = Math.max(0, command.duration);
+        this.notify();
+        break;
+    }
+
+    // 2. Route to Discord if enabled
     if (this.outputTarget === 'discord' || this.outputTarget === 'both') {
       this.forwardCommandToDiscord(command);
     }
 
-    // 2. Route to Web Audio Engine if enabled
+    // 3. Route audio playback to Web Audio Engine if enabled
     if (this.outputTarget === 'browser' || this.outputTarget === 'both') {
       switch (command.type) {
         case 'SCENE_START':
@@ -259,39 +310,8 @@ export class SessionController {
           await this.handleSfxTrigger(command.assetId, command.volume);
           break;
 
-        case 'CHANNEL_VOLUME_SET':
-          this.engine.setChannelVolume(command.channel, command.volume);
-          break;
-
-        case 'CHANNEL_MUTE_TOGGLE': {
-          const ch = this.engine.getChannel(command.channel);
-          if (ch) ch.setMute(!ch.isChannelMuted());
-          break;
-        }
-
-        case 'MASTER_VOLUME_SET':
-          this.engine.setMasterVolume(command.volume);
-          break;
-
-        case 'MASTER_MUTE':
-          this.engine.setMasterMute(command.muted);
-          break;
-
         case 'STOP_ALL':
           this.handleStopAll(command.fadeDuration);
-          break;
-
-        case 'LAYER_VOLUME_SET':
-          this.handleLayerVolume(command.layerId, command.volume);
-          break;
-
-        case 'LAYER_MUTE_TOGGLE':
-          this.handleLayerMuteToggle(command.layerId);
-          break;
-
-        case 'CROSSFADE_SET':
-          this.state.crossfadeDuration = Math.max(0, command.duration);
-          this.notify();
           break;
       }
     } else {

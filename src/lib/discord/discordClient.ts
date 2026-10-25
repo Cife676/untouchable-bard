@@ -159,7 +159,20 @@ export class DiscordClient {
       const formData = new FormData();
       formData.append('assetId', assetId);
       formData.append('name', name);
-      formData.append('file', fileBlob, `${assetId}.bin`);
+      let filename = `${assetId}.bin`;
+      if (fileBlob instanceof File && fileBlob.name) {
+        filename = fileBlob.name;
+      } else if (name && (name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg'))) {
+        filename = name;
+      } else if (fileBlob.type.includes('mpeg') || fileBlob.type.includes('mp3')) {
+        filename = `${assetId}.mp3`;
+      } else if (fileBlob.type.includes('wav')) {
+        filename = `${assetId}.wav`;
+      } else if (fileBlob.type.includes('ogg')) {
+        filename = `${assetId}.ogg`;
+      }
+
+      formData.append('file', fileBlob, filename);
 
       const res = await fetch('/api/discord/assets/upload', {
         method: 'POST',

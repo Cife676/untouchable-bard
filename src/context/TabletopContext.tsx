@@ -490,28 +490,6 @@ export const TabletopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const assetId = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
 
-        let type: AudioCategoryType = defaultType ?? 'SFX';
-        let loopable = false;
-
-        const lowerName = cleanName.toLowerCase();
-        if (!defaultType) {
-          if (lowerName.includes('theme') || lowerName.includes('music') || lowerName.includes('track')) {
-            type = 'MUSIC';
-            loopable = true;
-          } else if (lowerName.includes('ambience') || lowerName.includes('wind') || lowerName.includes('forest')) {
-            type = 'AMBIENCE';
-            loopable = true;
-          } else if (lowerName.includes('rain') || lowerName.includes('storm') || lowerName.includes('fire')) {
-            type = 'ENVIRONMENT';
-            loopable = true;
-          } else {
-            type = 'SFX';
-            loopable = false;
-          }
-        } else {
-          loopable = defaultType === 'MUSIC' || defaultType === 'AMBIENCE' || defaultType === 'ENVIRONMENT';
-        }
-
         await AudioFileStorage.saveAudioBlob(assetId, file);
         const objectUrl = URL.createObjectURL(file);
 
@@ -530,6 +508,56 @@ export const TabletopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
         } catch {
           // Duration detection failure is non-fatal
+        }
+
+        let type: AudioCategoryType = defaultType ?? 'MUSIC';
+        let loopable = true;
+
+        const lowerName = cleanName.toLowerCase();
+        const musicKeywords = [
+          'music', 'theme', 'track', 'bgm', 'song', 'ost', 'melody', 'battle', 'combat',
+          'boss', 'overture', 'symphony', 'score', 'tune', 'soundtrack', 'ballad', 'orchestra',
+          'acoustic', 'instrumental', 'dungeon', 'tavern', 'peaceful', 'epic', 'intro', 'outro',
+          'loop', 'bg', 'rpg', 'bard', 'guitar', 'piano', 'violin', 'synth'
+        ];
+        const ambienceKeywords = [
+          'ambience', 'ambient', 'wind', 'forest', 'cave', 'night', 'birds', 'crowd', 'whisper', 'nature'
+        ];
+        const envKeywords = [
+          'rain', 'storm', 'fire', 'waterfall', 'sea', 'waves', 'river', 'thunder', 'blizzard'
+        ];
+        const sfxKeywords = [
+          'sfx', 'hit', 'slash', 'punch', 'impact', 'click', 'clank', 'clang', 'door', 'spell',
+          'shoot', 'laser', 'explosion', 'blast', 'gun', 'step', 'footstep', 'roar', 'howl',
+          'crack', 'woosh', 'whoosh', 'beep', 'ping', 'fanfare', 'bell', 'gong', 'chime'
+        ];
+
+        if (!defaultType) {
+          if (musicKeywords.some((k) => lowerName.includes(k))) {
+            type = 'MUSIC';
+            loopable = true;
+          } else if (ambienceKeywords.some((k) => lowerName.includes(k))) {
+            type = 'AMBIENCE';
+            loopable = true;
+          } else if (envKeywords.some((k) => lowerName.includes(k))) {
+            type = 'ENVIRONMENT';
+            loopable = true;
+          } else if (sfxKeywords.some((k) => lowerName.includes(k))) {
+            type = 'SFX';
+            loopable = false;
+          } else {
+            // Duration heuristic: In TTRPG audio design, tracks > 12 seconds are background music / ambience
+            if (duration !== undefined && duration < 12) {
+              type = 'SFX';
+              loopable = false;
+            } else {
+              type = 'MUSIC';
+              loopable = true;
+            }
+          }
+        } else {
+          type = defaultType;
+          loopable = defaultType === 'MUSIC' || defaultType === 'AMBIENCE' || defaultType === 'ENVIRONMENT';
         }
 
         const newAsset: AudioAsset = {

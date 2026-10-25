@@ -188,7 +188,14 @@ export class AudioMixer {
   /**
    * Play a one-shot SFX cue over current mix
    */
-  public triggerSfx(assetId: string, buffer: Buffer, volume: number = 0.85, name: string = 'SFX'): void {
+  public triggerSfx(
+    assetId: string,
+    buffer: Buffer,
+    volume: number = 0.85,
+    name: string = 'SFX',
+    channel: ChannelId = 'sfx',
+    loop: boolean = false
+  ): void {
     const totalFrames = Math.floor(buffer.length / 4);
     if (totalFrames <= 0) return;
 
@@ -197,11 +204,11 @@ export class AudioMixer {
       id: layerId,
       assetId,
       name,
-      channel: 'sfx',
+      channel,
       buffer,
       totalFrames,
       cursor: 0,
-      loop: false,
+      loop,
       currentGain: Math.max(0, Math.min(1, volume)),
       targetGain: Math.max(0, Math.min(1, volume)),
       gainDelta: 0,

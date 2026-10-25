@@ -77,13 +77,21 @@ export const AssetEditModal: React.FC = () => {
               </label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value as AudioCategoryType)}
+                onChange={(e) => {
+                  const newType = e.target.value as AudioCategoryType;
+                  setType(newType);
+                  if (newType === 'MUSIC' || newType === 'AMBIENCE' || newType === 'ENVIRONMENT') {
+                    setLoopable(true);
+                  } else {
+                    setLoopable(false);
+                  }
+                }}
                 className="w-full bg-[#181d29] border border-[#2c3649] rounded px-3 py-2 text-xs text-neutral-200 focus:outline-hidden focus:border-amber-500"
               >
-                <option value="MUSIC">MUSIC</option>
-                <option value="AMBIENCE">AMBIENCE</option>
-                <option value="ENVIRONMENT">ENVIRONMENT</option>
-                <option value="SFX">SFX</option>
+                <option value="MUSIC">MUSIC (Looping bg music)</option>
+                <option value="AMBIENCE">AMBIENCE (Looping ambient)</option>
+                <option value="ENVIRONMENT">ENVIRONMENT (Looping layer)</option>
+                <option value="SFX">SFX (One-shot cue)</option>
               </select>
             </div>
 

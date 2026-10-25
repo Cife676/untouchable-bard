@@ -11,7 +11,7 @@ export const AudioImportModal: React.FC = () => {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [defaultCategory, setDefaultCategory] = useState<string>('Custom Audio');
-  const [defaultType, setDefaultType] = useState<AudioCategoryType | 'AUTO'>('AUTO');
+  const [defaultType, setDefaultType] = useState<AudioCategoryType | 'AUTO'>('MUSIC');
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -175,11 +175,11 @@ export const AudioImportModal: React.FC = () => {
               onChange={(e) => setDefaultType(e.target.value as AudioCategoryType | 'AUTO')}
               className="w-full bg-[#181d29] border border-[#2c3649] rounded px-3 py-1.5 text-xs text-neutral-200 focus:outline-hidden focus:border-amber-500"
             >
-              <option value="AUTO">Auto-detect from filename</option>
-              <option value="MUSIC">MUSIC (Looping bg track)</option>
+              <option value="MUSIC">MUSIC (Looping bg music track)</option>
               <option value="AMBIENCE">AMBIENCE (Background wind/birds)</option>
               <option value="ENVIRONMENT">ENVIRONMENT (Rain/fire layer)</option>
               <option value="SFX">SFX (One-shot cue)</option>
+              <option value="AUTO">Auto-detect (from filename & duration)</option>
             </select>
           </div>
         </div>

@@ -90,6 +90,8 @@ export type DiscordCommand =
       assetId: string;
       volume?: number;
       name?: string;
+      channel?: ChannelId;
+      loop?: boolean;
       guildId?: string;
     }
   | {
