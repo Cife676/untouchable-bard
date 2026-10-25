@@ -87,6 +87,54 @@ export function createApiServer(
   });
 
   /**
+   * GET /api/diag - Safe diagnostics checking token configuration and Discord REST API connectivity
+   */
+  app.get('/api/diag', async (_req: Request, res: Response) => {
+    try {
+      const rawToken = process.env.DISCORD_BOT_TOKEN || '';
+      const cleanToken = rawToken.trim().replace(/^["']|["']$/g, '').replace(/^Bot\s+/i, '');
+
+      const tokenMask = rawToken
+        ? `${rawToken.slice(0, 6)}...${rawToken.slice(-4)} (length: ${rawToken.length}, cleanLength: ${cleanToken.length}, hasWhitespace: ${/\s/.test(rawToken)}, hasBotPrefix: ${/^Bot\s+/i.test(rawToken)})`
+        : 'NONE';
+
+      let discordGatewayCheck: any = null;
+      try {
+        const gwRes = await fetch('https://discord.com/api/v10/gateway', {
+          signal: AbortSignal.timeout(5000),
+        });
+        const gwData = await gwRes.json().catch(() => null);
+        discordGatewayCheck = { status: gwRes.status, ok: gwRes.ok, data: gwData };
+      } catch (e: any) {
+        discordGatewayCheck = { error: e.message || String(e) };
+      }
+
+      let discordAuthCheck: any = null;
+      if (cleanToken) {
+        try {
+          const authRes = await fetch('https://discord.com/api/v10/users/@me', {
+            headers: { Authorization: `Bot ${cleanToken}` },
+            signal: AbortSignal.timeout(5000),
+          });
+          const authData = await authRes.json().catch(() => null);
+          discordAuthCheck = { status: authRes.status, ok: authRes.ok, user: authData };
+        } catch (e: any) {
+          discordAuthCheck = { error: e.message || String(e) };
+        }
+      }
+
+      res.json({
+        tokenMask,
+        discordGatewayCheck,
+        discordAuthCheck,
+        botServiceStatus: botService.getStatus(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Diag failed' });
+    }
+  });
+
+  /**
    * POST /api/reconnect - Trigger gateway reconnection attempt
    */
   app.post('/api/reconnect', async (_req: Request, res: Response) => {

@@ -15,8 +15,9 @@ dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const cleanEnv = (val?: string) => (val || '').trim().replace(/^["']|["']$/g, '');
+const cleanToken = (val?: string) => cleanEnv(val).replace(/^Bot\s+/i, '');
 
-const TOKEN = cleanEnv(process.env.DISCORD_BOT_TOKEN);
+const TOKEN = cleanToken(process.env.DISCORD_BOT_TOKEN);
 const GUILD_ID = cleanEnv(process.env.DISCORD_GUILD_ID);
 const SECRET = cleanEnv(process.env.DISCORD_INTEGRATION_SECRET) || 'untouchable_bard_dev_secret_local';
 const PORT = parseInt(process.env.PORT || process.env.DISCORD_BOT_PORT || '3001', 10);
