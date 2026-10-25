@@ -107,7 +107,7 @@ export class DiscordBotService {
     this.loginState = 'unconfigured';
   }
 
-  public async start(token: string, timeoutMs: number = 25000): Promise<boolean> {
+  public async start(token: string, timeoutMs: number = 60000): Promise<boolean> {
     if (!token || token.trim() === '' || token === 'your_bot_token_here') {
       this.loginState = 'failed';
       this.initError = 'DISCORD_BOT_TOKEN is not configured in environment variables.';
