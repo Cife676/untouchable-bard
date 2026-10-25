@@ -81,7 +81,7 @@ export const LiveDiscordPanel: React.FC = () => {
 
   const isConnected = status?.connectionState === 'connected';
   const isOnline = Boolean(status?.isOnline);
-  const isServiceReachable = status?.isServiceReachable !== false;
+  const isServiceReachable = Boolean(status && status.isServiceReachable !== false);
   const currentGuildName = status?.guildName || guilds.find((g) => g.id === selectedGuildId)?.name || 'Discord Server';
 
   return (
@@ -292,14 +292,19 @@ export const LiveDiscordPanel: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="text-xs text-neutral-400 flex items-center gap-2">
-              <span>Start the Discord service with</span>
-              <code className="text-amber-300 bg-[#161c28] px-2 py-0.5 rounded border border-[#263246] font-mono">
-                npm run discord:dev
-              </code>
+            <div className="text-xs text-neutral-400 flex flex-wrap items-center gap-2">
+              {!isServiceReachable ? (
+                <span>
+                  Bot service unreachable. On Vercel: set <code className="text-amber-300 bg-[#161c28] px-1.5 py-0.5 rounded border border-[#263246] font-mono">DISCORD_BOT_API_URL</code> to your Render URL.
+                </span>
+              ) : (
+                <span>
+                  Bot service running, but <code className="text-amber-300 bg-[#161c28] px-1.5 py-0.5 rounded border border-[#263246] font-mono">DISCORD_BOT_TOKEN</code> is required in Render environment variables.
+                </span>
+              )}
               <button
                 onClick={refreshStatus}
-                className="text-neutral-400 hover:text-white p-1 rounded hover:bg-[#1a2130]"
+                className="text-neutral-400 hover:text-white p-1 rounded hover:bg-[#1a2130] cursor-pointer"
                 title="Retry checking Discord service"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
