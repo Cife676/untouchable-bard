@@ -54,9 +54,13 @@ export class DiscordBotService {
     });
   }
 
+  public setConfigError(error: string): void {
+    this.initError = error;
+  }
+
   public async start(token: string): Promise<boolean> {
     if (!token || token.trim() === '' || token === 'your_bot_token_here') {
-      this.initError = 'DISCORD_BOT_TOKEN is not configured in .env';
+      this.initError = 'DISCORD_BOT_TOKEN is not configured in environment variables.';
       console.warn('[DiscordBot] Token not configured. Running in offline/API mode.');
       return false;
     }
@@ -68,8 +72,8 @@ export class DiscordBotService {
       return true;
     } catch (err: any) {
       this.isOnline = false;
-      this.initError = `Discord login failed: ${err.message}`;
-      console.error('[DiscordBot] Login failure:', err.message);
+      this.initError = `Discord login failed: ${err?.message || err}`;
+      console.error('[DiscordBot] Login failure:', err?.message || err);
       return false;
     }
   }
@@ -235,6 +239,7 @@ export class DiscordBotService {
       availableGuilds,
       activeSessionsCount: this.sessions.size,
       ...sessionStatus,
+      lastError: this.initError || sessionStatus.lastError,
     };
   }
 

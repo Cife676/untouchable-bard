@@ -40,8 +40,10 @@ async function bootstrap() {
       console.error('[DiscordService] Gateway connection error:', err?.message || err);
     });
   } else {
-    console.warn('[DiscordService] DISCORD_BOT_TOKEN not provided in environment.');
+    const missingMsg = 'DISCORD_BOT_TOKEN is not configured in Render environment variables.';
+    console.warn(`[DiscordService] ${missingMsg}`);
     console.warn('[DiscordService] Service running in offline/API mode. Audio mixing & API active.');
+    botService.setConfigError(missingMsg);
   }
 
   // Graceful shutdown
