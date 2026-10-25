@@ -87,6 +87,23 @@ export function createApiServer(
   });
 
   /**
+   * POST /api/reconnect - Trigger gateway reconnection attempt
+   */
+  app.post('/api/reconnect', async (_req: Request, res: Response) => {
+    try {
+      if (!botService.hasToken()) {
+        res.status(400).json({ success: false, error: 'No token configured to reconnect' });
+        return;
+      }
+      // Trigger reconnect asynchronously
+      botService.reconnect().catch((e) => console.error('[API] Reconnect error:', e));
+      res.json({ success: true, message: 'Discord gateway reconnection triggered' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message || 'Failed to trigger reconnect' });
+    }
+  });
+
+  /**
    * GET /api/channels - List voice channels in a specific guild
    */
   app.get('/api/channels', (req: Request, res: Response) => {

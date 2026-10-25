@@ -192,4 +192,19 @@ export class DiscordClient {
   public static async playTestTone(guildId?: string): Promise<{ success: boolean; error?: string }> {
     return this.sendCommand({ type: 'TEST_TONE' }, guildId);
   }
+
+  public static async reconnect(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch('/api/discord/reconnect', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Reconnect request failed' };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Reconnect request failed' };
+    }
+  }
 }

@@ -46,6 +46,21 @@ export const LiveDiscordPanel: React.FC = () => {
   const [isSetupGuideOpen, setIsSetupGuideOpen] = useState(false);
   const [testToneMessage, setTestToneMessage] = useState<string | null>(null);
   const [connectionErrorMessage, setConnectionErrorMessage] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
+  const handleReconnectBot = async () => {
+    setIsReconnecting(true);
+    try {
+      const { DiscordClient } = await import('@/lib/discord/discordClient');
+      await DiscordClient.reconnect();
+    } catch {
+      // Non-fatal
+    }
+    setTimeout(() => {
+      refreshStatus();
+      setIsReconnecting(false);
+    }, 2000);
+  };
 
   // Sync output target to session controller
   const handleSelectOutput = (target: AudioOutputTarget) => {
@@ -341,10 +356,21 @@ export const LiveDiscordPanel: React.FC = () => {
                   Bot service running, but <code className="text-amber-300 bg-[#161c28] px-1.5 py-0.5 rounded border border-[#263246] font-mono">DISCORD_BOT_TOKEN</code> is required in Render environment variables.
                 </span>
               ) : isLoginFailed ? (
-                <span className="text-rose-300 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                  <span>{lastError}</span>
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-rose-300 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span>{lastError}</span>
+                  </span>
+                  <button
+                    onClick={handleReconnectBot}
+                    disabled={isReconnecting}
+                    className="px-2 py-0.5 bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border border-amber-500/40 rounded text-[11px] font-bold cursor-pointer transition flex items-center gap-1"
+                    title="Trigger Discord Gateway Reconnect"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isReconnecting ? 'animate-spin' : ''}`} />
+                    <span>{isReconnecting ? 'Reconnecting...' : 'Retry Login'}</span>
+                  </button>
+                </div>
               ) : (
                 <span>
                   Discord bot is currently offline or waiting for gateway connection.

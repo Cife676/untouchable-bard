@@ -39,12 +39,31 @@ async function bootstrap() {
     console.log(`[DiscordService] Multi-server isolation active (per-guild audio mixers)`);
   });
 
-  // Connect Discord bot to gateway asynchronously
+  // Connect Discord bot to gateway asynchronously with automatic background retries
   if (TOKEN && TOKEN !== 'your_bot_token_here') {
-    console.log('[DiscordService] Authenticating bot with Discord gateway...');
-    botService.start(TOKEN).catch((err) => {
-      console.error('[DiscordService] Gateway connection error:', err?.message || err);
-    });
+    const connectWithRetry = async () => {
+      let delay = 3000;
+      let attempt = 1;
+      while (true) {
+        console.log(`[DiscordService] Authenticating bot with Discord gateway (attempt ${attempt})...`);
+        const success = await botService.start(TOKEN, 45000).catch((err) => {
+          console.error(`[DiscordService] Gateway connection error (attempt ${attempt}):`, err?.message || err);
+          return false;
+        });
+
+        if (success || botService.getStatus().isOnline) {
+          console.log('[DiscordService] Bot is online and connected to Discord gateway.');
+          break;
+        }
+
+        attempt++;
+        console.warn(`[DiscordService] Gateway handshake attempt failed or timed out. Retrying in ${Math.round(delay / 1000)}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(20000, Math.round(delay * 1.5));
+      }
+    };
+
+    connectWithRetry();
   } else {
     const missingMsg = 'DISCORD_BOT_TOKEN is not configured in Render environment variables.';
     console.warn(`[DiscordService] ${missingMsg}`);
