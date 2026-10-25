@@ -1,8 +1,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import dns from 'node:dns';
 import { AssetStore } from './assetStore.js';
 import { DiscordBotService } from './bot.js';
 import { createApiServer } from './apiServer.js';
+
+// Prioritize IPv4 for Discord Gateway connections on Linux cloud containers
+if (dns && typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 // Load .env from project root or local directory
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });

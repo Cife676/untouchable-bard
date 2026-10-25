@@ -24,7 +24,11 @@ export function createApiServer(
     },
   });
 
-  // Health check (unauthenticated for liveness probes)
+  // Health and root checks (unauthenticated for liveness probes)
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({ ok: true, service: 'Untouchable Bard Discord Bot', health: '/health', status: '/api/status' });
+  });
+
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
@@ -32,7 +36,7 @@ export function createApiServer(
   // Security boundary: Bearer token authentication
   const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     // Health and status probes are allowed unauthenticated for dashboard telemetry
-    if (req.method === 'GET' && (req.path === '/api/status' || req.path === '/health')) {
+    if (req.method === 'GET' && (req.path === '/' || req.path === '/api/status' || req.path === '/health')) {
       next();
       return;
     }

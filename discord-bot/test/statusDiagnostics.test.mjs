@@ -103,4 +103,83 @@ test('Discord Bot Diagnostics & Status Reporting Suite', async (t) => {
     assert.equal(status.voiceChannelId, null);
     assert.deepEqual(status.availableChannels, []);
   });
+
+  await t.test('6. Gateway handshake timeout captures failure and does not hang indefinitely', async () => {
+    const assetStore = new AssetStore();
+    const botService = new DiscordBotService(assetStore);
+
+    // Mock client.login to simulate a hanging gateway connection (never resolves)
+    botService.client.login = () => new Promise(() => {});
+
+    // Use a short 150ms timeout to verify timeout rejection behavior
+    const result = await botService.start('dummy_valid_format_token_12345', 150);
+    assert.equal(result, false, 'start() must return false when gateway handshake times out');
+
+    const status = botService.getStatus();
+    assert.equal(status.isOnline, false);
+    assert.match(
+      status.lastError || '',
+      /Gateway handshake timed out/i,
+      'lastError must report timeout failure'
+    );
+  });
+
+  await t.test('7. In-flight login attempt reports pending state in status response', async () => {
+    const assetStore = new AssetStore();
+    const botService = new DiscordBotService(assetStore);
+
+    let resolveLogin;
+    botService.client.login = () => new Promise((resolve) => { resolveLogin = resolve; });
+
+    // Start login without awaiting immediately
+    const loginPromise = botService.start('dummy_token_pending_123', 5000);
+
+    // Query status while login is in-flight
+    const pendingStatus = botService.getStatus();
+    assert.equal(pendingStatus.isOnline, false, 'isOnline must be false while pending');
+    assert.match(
+      pendingStatus.lastError || '',
+      /Discord gateway login is in progress/i,
+      'Must report login in progress'
+    );
+
+    // Resolve login and clean up
+    resolveLogin?.('token');
+    await loginPromise;
+
+    const resolvedStatus = botService.getStatus();
+    assert.equal(resolvedStatus.isOnline, true, 'isOnline must be true once resolved');
+    assert.equal(resolvedStatus.lastError, null, 'lastError must be null once online');
+  });
+
+  await t.test('8. Root / endpoint returns 200 OK for cloud liveness and browser visits', async () => {
+    const assetStore = new AssetStore();
+    const botService = new DiscordBotService(assetStore);
+    const app = createApiServer(botService, assetStore, 'test_secret_123');
+
+    let resStatus = 200;
+    let resData = null;
+
+    await new Promise((resolve) => {
+      const req = {
+        method: 'GET',
+        url: '/',
+        path: '/',
+        headers: {},
+        query: {},
+      };
+      const res = {
+        status(code) { resStatus = code; return this; },
+        json(data) { resData = data; resolve(); return this; },
+        setHeader() { return this; },
+        getHeader() {},
+      };
+
+      app.handle(req, res, () => resolve());
+    });
+
+    assert.equal(resStatus, 200, 'GET / must return 200 OK without requiring Authorization header');
+    assert.equal(resData.ok, true);
+    assert.equal(resData.service, 'Untouchable Bard Discord Bot');
+  });
 });

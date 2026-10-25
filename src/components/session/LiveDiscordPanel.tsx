@@ -83,14 +83,21 @@ export const LiveDiscordPanel: React.FC = () => {
   const isOnline = Boolean(status?.isOnline);
   const isServiceReachable = Boolean(status && status.isServiceReachable !== false);
   const lastError = status?.lastError || null;
+  const isGatewayConnecting = Boolean(
+    !isOnline &&
+    lastError &&
+    (lastError.toLowerCase().includes('in progress') ||
+      lastError.toLowerCase().includes('connecting to websocket'))
+  );
   const isTokenMissing = Boolean(
     !isOnline &&
+    !isGatewayConnecting &&
     lastError &&
     (lastError.toLowerCase().includes('not configured') ||
       lastError.toLowerCase().includes('missing') ||
       lastError.toLowerCase().includes('token required'))
   );
-  const isLoginFailed = Boolean(!isOnline && lastError && !isTokenMissing);
+  const isLoginFailed = Boolean(!isOnline && lastError && !isTokenMissing && !isGatewayConnecting);
   const currentGuildName = status?.guildName || guilds.find((g) => g.id === selectedGuildId)?.name || 'Discord Server';
 
   return (
@@ -168,6 +175,11 @@ export const LiveDiscordPanel: React.FC = () => {
             <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-full">
               <span className="w-2 h-2 rounded-full bg-neutral-600" />
               <span>DISCORD SERVICE OFFLINE</span>
+            </span>
+          ) : isGatewayConnecting ? (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/70 border border-amber-800/80 px-3 py-1 rounded-full animate-pulse">
+              <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" />
+              <span>CONNECTING TO DISCORD...</span>
             </span>
           ) : isTokenMissing ? (
             <span className="flex items-center gap-1.5 text-xs font-bold text-amber-400 bg-amber-950/50 border border-amber-800/60 px-3 py-1 rounded-full">
@@ -318,6 +330,11 @@ export const LiveDiscordPanel: React.FC = () => {
               {!isServiceReachable ? (
                 <span>
                   Bot service unreachable. On Vercel: set <code className="text-amber-300 bg-[#161c28] px-1.5 py-0.5 rounded border border-[#263246] font-mono">DISCORD_BOT_API_URL</code> to your Render URL.
+                </span>
+              ) : isGatewayConnecting ? (
+                <span className="text-amber-300 flex items-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+                  <span>Discord gateway handshake in progress...</span>
                 </span>
               ) : isTokenMissing ? (
                 <span>

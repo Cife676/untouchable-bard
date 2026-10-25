@@ -16,6 +16,7 @@ export class DiscordBotService {
   private isOnline: boolean = false;
   private botTag: string | null = null;
   private initError: string | null = null;
+  private loginState: 'unconfigured' | 'pending' | 'online' | 'failed' = 'unconfigured';
 
   constructor(assetStore: AssetStore, defaultGuildId?: string) {
     this.assetStore = assetStore;
@@ -35,13 +36,60 @@ export class DiscordBotService {
   private setupEvents(): void {
     this.client.once('ready', () => {
       this.isOnline = true;
+      this.loginState = 'online';
       this.botTag = this.client.user?.tag || null;
-      console.log(`[DiscordBot] Logged in successfully as ${this.botTag} (${this.client.guilds.cache.size} servers)`);
+      this.initError = null;
+      console.log(`[DiscordBot] Gateway ready: Logged in successfully as ${this.botTag} (${this.client.guilds.cache.size} servers)`);
     });
 
     this.client.on('error', (err) => {
-      console.error('[DiscordBot] Client error:', err.message);
-      this.initError = err.message;
+      console.error('[DiscordBot] General client error:', err?.message || err);
+      this.initError = `Discord client error: ${err?.message || err}`;
+    });
+
+    this.client.on('shardError', (err, shardId) => {
+      console.error(`[DiscordBot] Shard ${shardId} gateway error:`, err?.message || err);
+      this.initError = `Discord gateway error (Shard ${shardId}): ${err?.message || err}`;
+      this.isOnline = false;
+      this.loginState = 'failed';
+    });
+
+    this.client.on('shardDisconnect', (event, shardId) => {
+      console.warn(`[DiscordBot] Shard ${shardId} disconnected from gateway (code: ${event.code}, reason: ${event.reason || 'none'})`);
+      this.isOnline = false;
+      this.loginState = 'failed';
+      this.initError = `Discord gateway disconnected (code: ${event.code})`;
+    });
+
+    this.client.on('shardReconnecting', (shardId) => {
+      console.log(`[DiscordBot] Shard ${shardId} reconnecting to Discord gateway...`);
+      this.loginState = 'pending';
+    });
+
+    this.client.on('shardResume', (shardId, replayedEvents) => {
+      this.isOnline = true;
+      this.loginState = 'online';
+      this.initError = null;
+      console.log(`[DiscordBot] Shard ${shardId} resumed session (${replayedEvents} events replayed)`);
+    });
+
+    this.client.on('invalidated', () => {
+      console.error('[DiscordBot] Discord session invalidated. Bot token may have been revoked.');
+      this.isOnline = false;
+      this.loginState = 'failed';
+      this.initError = 'Discord session invalidated. Please verify bot token.';
+    });
+
+    this.client.on('debug', (info) => {
+      // Safe gateway logging with all tokens redacted
+      const safe = info.replace(/[a-zA-Z0-9_\-\.]{24,}/g, '[REDACTED]');
+      if (safe.includes('[WS') || safe.includes('gateway') || safe.includes('Heartbeat') || safe.includes('Connecting')) {
+        console.log(`[DiscordGateway] ${safe}`);
+      }
+    });
+
+    this.client.on('warn', (warning) => {
+      console.warn(`[DiscordBot] Gateway warning: ${warning}`);
     });
 
     this.client.on('guildDelete', (guild) => {
@@ -56,24 +104,44 @@ export class DiscordBotService {
 
   public setConfigError(error: string): void {
     this.initError = error;
+    this.loginState = 'unconfigured';
   }
 
-  public async start(token: string): Promise<boolean> {
+  public async start(token: string, timeoutMs: number = 25000): Promise<boolean> {
     if (!token || token.trim() === '' || token === 'your_bot_token_here') {
+      this.loginState = 'failed';
       this.initError = 'DISCORD_BOT_TOKEN is not configured in environment variables.';
       console.warn('[DiscordBot] Token not configured. Running in offline/API mode.');
       return false;
     }
 
+    this.loginState = 'pending';
+    this.initError = null;
+    console.log('[DiscordBot] Initiating Discord gateway handshake...');
+
     try {
-      await this.client.login(token);
+      const loginPromise = this.client.login(token);
+      let timeoutHandle: NodeJS.Timeout | null = null;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`Gateway handshake timed out after ${Math.round(timeoutMs / 1000)}s`));
+        }, timeoutMs);
+      });
+
+      await Promise.race([loginPromise, timeoutPromise]);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+
       this.isOnline = true;
+      this.loginState = 'online';
       this.initError = null;
+      this.botTag = this.client.user?.tag || this.botTag;
+      console.log(`[DiscordBot] Gateway login Promise resolved. Logged in as ${this.botTag || 'bot'}`);
       return true;
     } catch (err: any) {
       this.isOnline = false;
+      this.loginState = 'failed';
       this.initError = `Discord login failed: ${err?.message || err}`;
-      console.error('[DiscordBot] Login failure:', err?.message || err);
+      console.error('[DiscordBot] Gateway login failure:', err?.message || err);
       return false;
     }
   }
@@ -233,13 +301,18 @@ export class DiscordBotService {
       };
     }
 
+    const effectiveError =
+      this.initError ||
+      (this.loginState === 'pending' ? 'Discord gateway login is in progress (connecting to WebSocket gateway)...' : null) ||
+      sessionStatus.lastError;
+
     return {
       isOnline: this.isOnline,
       botTag: this.botTag,
       availableGuilds,
       activeSessionsCount: this.sessions.size,
       ...sessionStatus,
-      lastError: this.initError || sessionStatus.lastError,
+      lastError: effectiveError,
     };
   }
 
