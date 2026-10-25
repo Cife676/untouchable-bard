@@ -35,8 +35,8 @@ export function createApiServer(
 
   // Security boundary: Bearer token authentication
   const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-    // Health and status probes are allowed unauthenticated for dashboard telemetry
-    if (req.method === 'GET' && (req.path === '/' || req.path === '/api/status' || req.path === '/health')) {
+    // Health, status, and safe diag probes are allowed unauthenticated for dashboard telemetry
+    if (req.method === 'GET' && (req.path === '/' || req.path === '/api/status' || req.path === '/api/diag' || req.path === '/health')) {
       next();
       return;
     }
