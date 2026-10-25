@@ -22,16 +22,7 @@ async function bootstrap() {
   const assetStore = new AssetStore();
   const botService = new DiscordBotService(assetStore, GUILD_ID || undefined);
 
-  // Attempt Discord bot login
-  if (TOKEN && TOKEN !== 'your_bot_token_here') {
-    console.log('[DiscordService] Authenticating bot with Discord gateway...');
-    await botService.start(TOKEN);
-  } else {
-    console.warn('[DiscordService] DISCORD_BOT_TOKEN not provided in environment.');
-    console.warn('[DiscordService] Service running in offline/API mode. Audio mixing & API active.');
-  }
-
-  // Create Express API server
+  // Create Express API server and start listening immediately (passes cloud health checks instantly)
   const app = createApiServer(botService, assetStore, SECRET);
 
   const server = app.listen(PORT, HOST, () => {
@@ -39,6 +30,17 @@ async function bootstrap() {
     console.log(`[DiscordService] Authenticated via DISCORD_INTEGRATION_SECRET`);
     console.log(`[DiscordService] Multi-server isolation active (per-guild audio mixers)`);
   });
+
+  // Connect Discord bot to gateway asynchronously
+  if (TOKEN && TOKEN !== 'your_bot_token_here') {
+    console.log('[DiscordService] Authenticating bot with Discord gateway...');
+    botService.start(TOKEN).catch((err) => {
+      console.error('[DiscordService] Gateway connection error:', err?.message || err);
+    });
+  } else {
+    console.warn('[DiscordService] DISCORD_BOT_TOKEN not provided in environment.');
+    console.warn('[DiscordService] Service running in offline/API mode. Audio mixing & API active.');
+  }
 
   // Graceful shutdown
   const shutdown = () => {
