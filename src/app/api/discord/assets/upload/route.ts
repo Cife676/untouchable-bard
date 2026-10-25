@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BOT_BASE_URL =
+const rawBotUrl =
   process.env.DISCORD_BOT_API_URL ||
   process.env.DISCORD_BOT_URL ||
   `http://${process.env.DISCORD_BOT_HOST || '127.0.0.1'}:${process.env.DISCORD_BOT_PORT || '3001'}`;
-const SECRET = process.env.DISCORD_INTEGRATION_SECRET || 'untouchable_bard_dev_secret_local';
+const BOT_BASE_URL = rawBotUrl.trim().replace(/\/+$/, '');
+
+const rawSecret = process.env.DISCORD_INTEGRATION_SECRET || 'untouchable_bard_dev_secret_local';
+const SECRET = rawSecret.trim().replace(/^["']|["']$/g, '');
 
 export async function POST(request: NextRequest) {
   try {

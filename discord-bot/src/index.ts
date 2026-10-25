@@ -8,9 +8,11 @@ import { createApiServer } from './apiServer.js';
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const TOKEN = process.env.DISCORD_BOT_TOKEN || '';
-const GUILD_ID = process.env.DISCORD_GUILD_ID || '';
-const SECRET = process.env.DISCORD_INTEGRATION_SECRET || 'untouchable_bard_dev_secret_local';
+const cleanEnv = (val?: string) => (val || '').trim().replace(/^["']|["']$/g, '');
+
+const TOKEN = cleanEnv(process.env.DISCORD_BOT_TOKEN);
+const GUILD_ID = cleanEnv(process.env.DISCORD_GUILD_ID);
+const SECRET = cleanEnv(process.env.DISCORD_INTEGRATION_SECRET) || 'untouchable_bard_dev_secret_local';
 const PORT = parseInt(process.env.PORT || process.env.DISCORD_BOT_PORT || '3001', 10);
 const HOST = process.env.DISCORD_BOT_HOST || '0.0.0.0';
 
